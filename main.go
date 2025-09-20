@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -43,7 +44,7 @@ type Plan struct {
 }
 
 type AIClient interface {
-	SuggestMessage(ctx context.Context, model string, diff string, oldMsg string) (string, error)
+	SuggestMessage(ctx context.Context, model string, diff string, oldMsg string, emojiMode bool) (string, error)
 }
 
 // ============================
@@ -71,12 +72,37 @@ func NewOpenAIClient() (*OpenAIClient, error) {
 	return &OpenAIClient{client: cli}, nil
 }
 
-func (c *OpenAIClient) SuggestMessage(ctx context.Context, model string, diff string, oldMsg string) (string, error) {
-	sys := `You are an expert at writing precise, helpful Git commit messages.
+func (c *OpenAIClient) SuggestMessage(ctx context.Context, model string, diff string, oldMsg string, emojiMode bool) (string, error) {
+	var sys string
+	if emojiMode {
+		sys = `You are an expert at writing precise, helpful Git commit messages with emojis.
+Use the present tense ("Add feature" not "Added feature")
+Use the imperative mood ("Move cursor to..." not "Moves cursor to...")
+Limit the first line to 72 characters or less
+Consider starting the commit message with an applicable emoji:
+🎨 :art: when improving the format/structure of the code
+🐎 :racehorse: when improving performance
+🚱 :non-potable_water: when plugging memory leaks
+📝 :memo: when writing docs
+🐧 :penguin: when fixing something on Linux
+🍎 :apple: when fixing something on macOS
+🏁 :checkered_flag: when fixing something on Windows
+🐛 :bug: when fixing a bug
+🔥 :fire: when removing code or files
+💚 :green_heart: when fixing the CI build
+✅ :white_check_mark: when adding tests
+🔒 :lock: when dealing with security
+⬆️ :arrow_up: when upgrading dependencies
+⬇️ :arrow_down: when downgrading dependencies
+👕 :shirt: when removing linter warnings
+If the diff is large, summarize purpose + major changes concisely.`
+	} else {
+		sys = `You are an expert at writing precise, helpful Git commit messages.
 Follow the "Conventional Commits" style when appropriate.
 One short summary line (<= 72 chars), then an empty line, then bullet points if needed.
 Use imperative present tense (e.g., "fix: handle nil pointer in X").
 If the diff is large, summarize purpose + major changes concisely.`
+	}
 
 	user := fmt.Sprintf(
 		"Old message:\n\"%s\"\n\nDiff (unified, files & hunks):\n%s",
@@ -130,7 +156,27 @@ func ensureCleanWorktree() error {
 	if err != nil {
 		return err
 	}
-	if strings.TrimSpace(out) != "" {
+
+	// Filter out plan.json and other working files
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	var filteredLines []string
+
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		// Extract filename from git status --porcelain output
+		// Format: "XY filename" where XY are status codes
+		if len(line) >= 3 {
+			filename := strings.TrimSpace(line[2:])
+			// Ignore plan.json files
+			if filename != "plan.json" {
+				filteredLines = append(filteredLines, line)
+			}
+		}
+	}
+
+	if len(filteredLines) > 0 {
 		return errors.New("worktree is not clean; commit/stash first")
 	}
 	return nil
@@ -188,6 +234,15 @@ func showDiff(sha string) (string, error) {
 	return out, nil
 }
 
+func getStagedDiff() (string, error) {
+	// ステージングエリアの差分を取得
+	out, err := git("diff", "--cached", "--patch", "--unified=3", "--no-color", "--find-renames")
+	if err != nil {
+		return "", err
+	}
+	return out, nil
+}
+
 // ============================
 // Utilities
 // ============================
@@ -235,6 +290,7 @@ func cmdPlan(args []string) error {
 	rangeExpr := fs.String("range", "", "explicit git range (e.g., <base>..<head>)")
 	model := fs.String("model", envOr("OPENAI_MODEL", "gpt-5-nano"), "LLM model")
 	allowMerges := fs.Bool("allow-merges", false, "include merge commits (not recommended)")
+	emoji := fs.Bool("emoji", false, "use emoji style commit messages")
 	outFile := fs.String("out", "plan.json", "output plan file")
 	timeout := fs.Duration("timeout", 25*time.Second, "per-commit AI timeout")
 	fs.Parse(args)
@@ -281,7 +337,7 @@ func cmdPlan(args []string) error {
 			return err
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), *timeout)
-		newMsg, err := ai.SuggestMessage(ctx, *model, diff, c.Subject)
+		newMsg, err := ai.SuggestMessage(ctx, *model, diff, c.Subject, *emoji)
 		cancel()
 		if err != nil {
 			return fmt.Errorf("AI failed for %s: %w", c.SHA, err)
@@ -444,6 +500,90 @@ func cmdApply(args []string) error {
 }
 
 // ============================
+// Commit command (staged changes)
+// ============================
+
+func cmdCommit(args []string) error {
+	fs := flag.NewFlagSet("commit", flag.ExitOnError)
+	model := fs.String("model", envOr("OPENAI_MODEL", "gpt-5-nano"), "LLM model")
+	emoji := fs.Bool("emoji", false, "use emoji style commit messages")
+	timeout := fs.Duration("timeout", 25*time.Second, "AI timeout")
+	auto := fs.Bool("auto", false, "auto-commit without confirmation")
+	fs.Parse(args)
+
+	// Check if staging area has changes
+	stagedFiles, err := git("diff", "--cached", "--name-only")
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(stagedFiles) == "" {
+		return errors.New("no staged changes found. Use 'git add' to stage your changes first")
+	}
+
+	// Get staged diff
+	diff, err := getStagedDiff()
+	if err != nil {
+		return err
+	}
+
+	// Initialize AI client
+	ai, err := NewOpenAIClient()
+	if err != nil {
+		return err
+	}
+
+	// Generate commit message
+	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+	defer cancel()
+
+	fmt.Println("🤖 Generating commit message from staged changes...")
+	newMsg, err := ai.SuggestMessage(ctx, *model, diff, "", *emoji)
+	if err != nil {
+		return fmt.Errorf("AI failed to generate message: %w", err)
+	}
+
+	// Sanitize message
+	cleanMsg := sanitizeMessage(newMsg)
+
+	// Show generated message
+	fmt.Printf("\n📝 Generated commit message:\n")
+	fmt.Printf("   %s\n\n", strings.ReplaceAll(cleanMsg, "\n", "\n   "))
+
+	// Get confirmation unless auto mode
+	if !*auto {
+		fmt.Print("❓ Commit with this message? [y/N/e(dit)]: ")
+		scanner := bufio.NewScanner(os.Stdin)
+		scanner.Scan()
+		response := strings.ToLower(strings.TrimSpace(scanner.Text()))
+
+		switch response {
+		case "y", "yes":
+			// Proceed with commit
+		case "e", "edit":
+			// Allow editing the message
+			fmt.Print("✏️  Enter your commit message: ")
+			scanner.Scan()
+			editedMsg := strings.TrimSpace(scanner.Text())
+			if editedMsg != "" {
+				cleanMsg = editedMsg
+			}
+		default:
+			fmt.Println("❌ Commit cancelled")
+			return nil
+		}
+	}
+
+	// Execute commit
+	_, err = git("commit", "-m", cleanMsg)
+	if err != nil {
+		return fmt.Errorf("git commit failed: %w", err)
+	}
+
+	fmt.Printf("✅ Successfully committed with message:\n   %s\n", strings.ReplaceAll(cleanMsg, "\n", "\n   "))
+	return nil
+}
+
+// ============================
 // main
 // ============================
 
@@ -455,10 +595,14 @@ func main() {
 Subcommands:
   plan   - generate AI commit messages for a range (writes plan.json)
   apply  - apply plan.json on a new branch as rewritten linear history
+  commit - generate AI commit message from staged changes and commit
 
 Examples:
   git-smartmsg plan --limit 30 --model gpt-5-nano
+  git-smartmsg plan --emoji --limit 10
   git-smartmsg apply --branch rewrite/2025-09-20
+  git-smartmsg commit --emoji
+  git-smartmsg commit --auto --model gpt-4o
 `)
 		os.Exit(2)
 	}
@@ -470,6 +614,10 @@ Examples:
 	case "apply":
 		if err := cmdApply(os.Args[2:]); err != nil {
 			log.Fatal("apply error: ", err)
+		}
+	case "commit":
+		if err := cmdCommit(os.Args[2:]); err != nil {
+			log.Fatal("commit error: ", err)
 		}
 	default:
 		log.Fatal("unknown subcommand")
