@@ -117,6 +117,18 @@ git-smartmsg apply [options]
 - `--in <file>`: Plan file path (default: `plan.json`)
 - `--allow-merges`: Attempt to preserve merge commits (experimental)
 
+#### `commit` - Generate AI commit message from staged changes
+
+```bash
+git-smartmsg commit [options]
+```
+
+**Options:**
+- `--model <model>`: LLM model to use (default: from env or `gpt-5-nano`)
+- `--emoji`: Use emoji-style commit messages
+- `--timeout <duration>`: AI timeout (default: 25s)
+- `--auto`: Auto-commit without confirmation
+
 ## Examples
 
 ### Basic Usage
@@ -130,6 +142,18 @@ git-smartmsg apply [options]
 
 # Apply to new branch
 ./git-smartmsg apply --branch feature/improved-commits
+
+# Generate AI commit message from staged changes
+git add .
+./git-smartmsg commit
+
+# Use emoji mode for commit
+git add src/
+./git-smartmsg commit --emoji
+
+# Auto-commit without confirmation
+git add .
+./git-smartmsg commit --auto
 ```
 
 ### Advanced Usage
@@ -146,7 +170,9 @@ git-smartmsg apply [options]
 ./git-smartmsg apply --allow-merges --branch with-merges
 ```
 
-### Workflow Example
+### Workflow Examples
+
+#### Plan & Apply Workflow (History Rewriting)
 
 ```bash
 # 1. Check what commits you want to improve
@@ -166,6 +192,32 @@ git log --oneline -10
 
 # 6. Push when satisfied (optional)
 git push --force-with-lease origin feature/ai-improved-messages
+```
+
+#### Commit Workflow (New Changes)
+
+```bash
+# 1. Make your changes
+echo "console.log('Hello World');" > hello.js
+
+# 2. Stage your changes
+git add hello.js
+
+# 3. Generate AI commit message and review
+./git-smartmsg commit --emoji
+
+# Interactive prompt example:
+# 🤖 Generating commit message from staged changes...
+#
+# 📝 Generated commit message:
+#    🎉 Add hello world example in JavaScript
+#
+# ❓ Commit with this message? [y/N/e(dit)]: y
+# ✅ Successfully committed with message:
+#    🎉 Add hello world example in JavaScript
+
+# 4. Push your commit
+git push origin main
 ```
 
 ## Emoji Mode
@@ -235,10 +287,14 @@ git push --force-with-lease origin your-branch-name
 - Commit or stash your changes first
 - `plan.json` is automatically ignored
 
-**"AI failed for commit"**
+**"AI failed for commit"** / **"AI failed to generate message"**
 - Check your OpenAI API key
 - Verify API quota/limits
 - Try a smaller batch size
+
+**"no staged changes found"**
+- Use `git add` to stage your changes before running `commit`
+- Check `git status` to see what files are available to stage
 
 **"cherry-pick failed"**
 - Complex conflicts may require manual resolution

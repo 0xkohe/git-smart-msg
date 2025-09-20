@@ -117,6 +117,18 @@ git-smartmsg apply [オプション]
 - `--in <ファイル>`: プランファイルのパス（デフォルト: `plan.json`）
 - `--allow-merges`: マージコミットの保持を試行（実験的機能）
 
+#### `commit` - ステージングエリアの変更からAIコミットメッセージを生成
+
+```bash
+git-smartmsg commit [オプション]
+```
+
+**オプション:**
+- `--model <モデル>`: 使用するLLMモデル（デフォルト: 環境変数または`gpt-5-nano`）
+- `--emoji`: 絵文字スタイルのコミットメッセージを使用
+- `--timeout <期間>`: AIタイムアウト（デフォルト: 25秒）
+- `--auto`: 確認なしで自動コミット
+
 ## 使用例
 
 ### 基本的な使用方法
@@ -130,6 +142,18 @@ git-smartmsg apply [オプション]
 
 # 新しいブランチに適用
 ./git-smartmsg apply --branch feature/improved-commits
+
+# ステージングエリアの変更からAIコミットメッセージを生成
+git add .
+./git-smartmsg commit
+
+# 絵文字モードでコミット
+git add src/
+./git-smartmsg commit --emoji
+
+# 確認なしで自動コミット
+git add .
+./git-smartmsg commit --auto
 ```
 
 ### 高度な使用方法
@@ -147,6 +171,8 @@ git-smartmsg apply [オプション]
 ```
 
 ### ワークフロー例
+
+#### プラン・適用ワークフロー（履歴書き換え）
 
 ```bash
 # 1. 改善したいコミットを確認
@@ -166,6 +192,32 @@ git log --oneline -10
 
 # 6. 満足したらプッシュ（オプション）
 git push --force-with-lease origin feature/ai-improved-messages
+```
+
+#### コミットワークフロー（新しい変更）
+
+```bash
+# 1. 変更を作成
+echo "console.log('Hello World');" > hello.js
+
+# 2. 変更をステージング
+git add hello.js
+
+# 3. AIコミットメッセージを生成して確認
+./git-smartmsg commit --emoji
+
+# インタラクティブプロンプト例:
+# 🤖 Generating commit message from staged changes...
+#
+# 📝 Generated commit message:
+#    🎉 Add hello world example in JavaScript
+#
+# ❓ Commit with this message? [y/N/e(dit)]: y
+# ✅ Successfully committed with message:
+#    🎉 Add hello world example in JavaScript
+
+# 4. コミットをプッシュ
+git push origin main
 ```
 
 ## 絵文字モード
@@ -236,10 +288,14 @@ git push --force-with-lease origin your-branch-name
 - 最初に変更をコミットまたはstash
 - `plan.json`は自動的に無視されます
 
-**"AI failed for commit"**
+**"AI failed for commit"** / **"AI failed to generate message"**
 - OpenAI APIキーを確認
 - APIクォータ/制限を確認
 - より小さなバッチサイズを試す
+
+**"no staged changes found"**
+- `commit`実行前に`git add`で変更をステージング
+- `git status`で利用可能なファイルを確認
 
 **"cherry-pick failed"**
 - 複雑な競合は手動解決が必要な場合があります
