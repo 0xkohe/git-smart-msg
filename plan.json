@@ -1,0 +1,90 @@
+{
+  "repo_path": "/home/kooooohe/Documents/anti-pattern/posse-screen",
+  "base": "9e72060d93a3f344ab237bce92106f6193260cb6",
+  "head": "1dfbbf11782fbf0da5158f199fdda6d51e2f1cda",
+  "created_at": "2025-09-20T20:09:47+09:00",
+  "model": "gpt-5-nano",
+  "allow_merges": false,
+  "items": [
+    {
+      "sha": "97be57eab961bb5498d2101806097c7f59e0a10f",
+      "old_message": "updated",
+      "new_message": "fix: render post.text directly instead of per-char spacing\n\n- Remove splitting post.text into characters and joining with '✧'\n- Update Post.tsx to display raw text as-is",
+      "author_name": "kooooohe",
+      "author_email": "1211lta+github@gmail.com",
+      "author_date": "2025-05-10T23:43:06+09:00"
+    },
+    {
+      "sha": "f4cfdb0e98c5e4162ed97a43456c0f1a00b8ae9c",
+      "old_message": "updated",
+      "new_message": "feat: add per-display roomId suffix and display index parsing\n\n- Iterate displays by index in client/index.js and call showWindow with roomId + `_${i}`.\n- Add displayIndex property in client/src/main.ts and parse roomId suffix to extract the display index; store the base roomId in this.roomId as rid.",
+      "author_name": "kooooohe",
+      "author_email": "1211lta+github@gmail.com",
+      "author_date": "2025-05-10T23:52:28+09:00"
+    },
+    {
+      "sha": "83afabb2eb7895154b4b226d9f330eed81434127",
+      "old_message": "updated",
+      "new_message": "feat: auto-generate Kansai-ben AI comments after every 10 msgs\n\n- Import addDoc from firebase/firestore and use it to store AI-generated comments\n- Add messageCount and recentMessages state to POSSEscreen; initialize in constructor\n- In addMessage, increment messageCount, maintain a rolling recentMessages array (max 10)\n- Every 10 messages (and when displayIndex is 0), generateKansaiComment and append AI comment to Firestore\n- Implement generateKansaiComment to query OpenAI (GPT-4o) for Kansai-ben, then save as a Firestore message with senderId: \"AI\", dialect_type: \"normal\", isConverted: true\n- Update the \"space\" prompt to a simpler instruction, removing extra robotic prompts while preserving output in宇宙語\n- Add inline comments marking the new/updated sections for clarity",
+      "author_name": "kooooohe",
+      "author_email": "1211lta+github@gmail.com",
+      "author_date": "2025-05-11T00:06:34+09:00"
+    },
+    {
+      "sha": "df1dd76878139f365c498a0a4ebebd93d4d253c4",
+      "old_message": "updated",
+      "new_message": "feat(webfront): add Firebase hosting and Firestore config\n\n- add firebase.json with hosting settings\n- add firestore.rules for security\n- add firestore.indexes.json (empty defaults)\n- update webfront/.gitignore to ignore .firebase and .firebaserc",
+      "author_name": "kooooohe",
+      "author_email": "1211lta+github@gmail.com",
+      "author_date": "2025-05-11T10:29:33+09:00"
+    },
+    {
+      "sha": "b549beff042ddc4ff8d9ffc84c2709837897252e",
+      "old_message": "updated",
+      "new_message": "feat: add join-room page and remove legacy home route\n\n- Add new route at webfront/app/routes/_index.tsx to join a chat room by Room ID and navigate to /room/{id}\n- Delete old route at webfront/app/routes/home.tsx (legacy home page)",
+      "author_name": "kooooohe",
+      "author_email": "1211lta+github@gmail.com",
+      "author_date": "2025-05-11T10:38:30+09:00"
+    },
+    {
+      "sha": "032446e20c5c6e5ecc59742015279654dafcdb21",
+      "old_message": "updated",
+      "new_message": "feat(webfront): redesign home page with space-themed UI\n\n- Overhauls the home route (webfront/app/routes/_index.tsx) to render a space-themed join page.\n- Replaces the old UI with a starfield background, moon silhouette, and paper-texture overlay; adds decorative elements and subtle animations.\n- Updates meta: title to \"ZEN SPACE | チャットルーム参加\" and description to a space/Japanese fusion message.\n- Implements a room ID join form; on submit, navigates to /room/${roomId}.\n- Adds micro-interactions (twinkling stars, floating elements) via inline CSS keyframes.",
+      "author_name": "kooooohe",
+      "author_email": "1211lta+github@gmail.com",
+      "author_date": "2025-05-11T10:52:27+09:00"
+    },
+    {
+      "sha": "d86884bf817b3ed262fee0ad9dfe5e7df6014f13",
+      "old_message": "updated",
+      "new_message": "feat: add Japanese-space visuals to room page; switch index route to plain style\n\n- room.$id/route.tsx: implement layered background visuals including a gradient base, Japanese pattern overlay, cherry blossom petals, wave patterns, stars, and torii silhouettes; petals generated dynamically for a subtle motion-y feel; header area updated with a faint decorative background.\n- webfront/app/routes/_index.tsx: switch from styled-jsx (\u003cstyle jsx\u003e) to a plain \u003cstyle\u003e tag to simplify styling.",
+      "author_name": "kooooohe",
+      "author_email": "1211lta+github@gmail.com",
+      "author_date": "2025-05-11T10:57:52+09:00"
+    },
+    {
+      "sha": "353357b8c9dfef25f07c7aa02bc18640845e5a9a",
+      "old_message": "updated",
+      "new_message": "chore(webfront): remove Dockerfile and simplify README\n\n- Delete webfront/Dockerfile\n- Update webfront/README.md:\n  - Change heading from \"# Welcome to React Router!\" to \"# React Router!\"\n  - Remove the Features section\n  - Remove Docker Deployment steps; replace with deployment guidance using npm run build and firebase deploy",
+      "author_name": "kooooohe",
+      "author_email": "1211lta+github@gmail.com",
+      "author_date": "2025-05-12T14:33:45+09:00"
+    },
+    {
+      "sha": "c1c3596711823f27c0f6ee3a0fa112f188f3240e",
+      "old_message": "updated",
+      "new_message": "chore(webfront): add .env.sample with Firebase config placeholders\n\n- Adds webfront/.env.sample containing placeholders for Firebase config\n  - VITE_PUBLIC_FIREBASE_API_KEY\n  - VITE_PUBLIC_FIREBASE_AUTH_DOMAIN\n  - VITE_PUBLIC_FIREBASE_PROJECT_ID\n  - VITE_PUBLIC_FIREBASE_STORAGE_BUCKET\n  - VITE_PUBLIC_FIREBASE_APP_ID\n- Documents required env vars for local development and setup",
+      "author_name": "kooooohe",
+      "author_email": "1211lta+github@gmail.com",
+      "author_date": "2025-05-12T14:43:19+09:00"
+    },
+    {
+      "sha": "1dfbbf11782fbf0da5158f199fdda6d51e2f1cda",
+      "old_message": "updated",
+      "new_message": "feat(home): implement join/create room flow with Firestore\n\n- Add join and create room UI/state to Home:\n  roomId, roomName, isLoading, error, mode; include tab-like mode switch between join and create\n- Validate inputs, show errors, and handle loading state\n- Create new rooms in Firestore via addDoc(collection(db, 'rooms')), with name, createdAt, createdBy; navigate to new room by ID\n- Improve meta title/description to reflect new flow\n- Update room route to default createdBy to 'Anonymous' and remove participants mapping\n- Remove participants field from Room type in types.ts",
+      "author_name": "kooooohe",
+      "author_email": "1211lta+github@gmail.com",
+      "author_date": "2025-05-12T15:29:13+09:00"
+    }
+  ]
+}
